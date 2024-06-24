@@ -1,0 +1,156 @@
+const API_URL = 'http://localhost:3000/api';
+let loggedIn = false;
+let currentView = 'login';
+
+const backBtn = document.getElementById('backBtn');
+backBtn.addEventListener('click', goBack);
+
+function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    if (password === 'ssdadmin') {
+        loggedIn = true;
+        showPopup(`Hello ${username}! You are now logged into SSD Help Desk`, 'success');
+        showView('dashboard');
+    } else {
+        showPopup('Credentials are incorrect', 'error');
+    }
+}
+
+function showTicketForm() {
+    showView('ticketForm');
+}
+
+function showTicketList() {
+    showView('ticketList');
+    renderTicketList();
+}
+
+document.getElementById('ticketForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    createTicket();
+});
+
+function createTicket() {
+    const ticket = {
+        name: document.getElementById('clientName').value,
+        address: document.getElementById('clientAddress').value,
+        reference: document.getElementById('clientReference').value,
+        contact: document.getElementById('clientContact').value,
+        email: document.getElementById('clientEmail').value,
+        issue: document.getElementById('clientIssue').value,
+        status: document.getElementById('clientIssueStatus').value,
+        category: document.getElementById('clientIssueCategory').value,
+        description: document.getElementById('clientIssueDescription').value
+    };
+
+    fetch(`${API_URL}/tickets`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ticket),
+    })
+    .then(response => response.json())
+    .then(data => {
+        showPopup(`Your ticket has been created with the ticket number ${data.data.id}`, 'success');
+        document.getElementById('ticketForm').reset();
+        showView('dashboard');
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        showPopup('Error creating ticket', 'error');
+    });
+}
+
+function renderTicketList() {
+    fetch(`${API_URL}/tickets`)
+    .then(response => response.json())
+    .then(data => {
+        const listElement = document.getElementById('ticketListItems');
+        listElement.innerHTML = '';
+        data.data.forEach(ticket => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${ticket.id}</td>
+                <td>${ticket.issue}</td>
+                <td>${ticket.status}</td>
+                <td>${ticket.category}</td>
+            `;
+            listElement.appendChild(row);
+        });
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        showPopup('Error fetching tickets', 'error');
+    });
+}
+
+function showPopup(message, type) {
+    const toast = document.getElementById('popup');
+    const toastBody = toast.querySelector('.toast-body');
+    toastBody.textContent = message;
+    toast.classList.remove('success', 'error');
+    toast.classList.add(type);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+}
+
+function closeApp() {
+    loggedIn = false;
+    showView('login');
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+}
+
+function showView(view) {
+    const views = ['loginForm', 'dashboard', 'ticketForm', 'ticketList'];
+    views.forEach(v => document.getElementById(v).style.display = 'none');
+    document.getElementById(view).style.display = 'block';
+    currentView = view;
+    updateBackButton();
+}
+
+function updateBackButton() {
+    if (currentView === 'login' || currentView === 'dashboard') {
+        backBtn.style.display = 'none';
+    } else {
+        backBtn.style.display = 'block';
+    }
+}
+
+function goBack() {
+    if (currentView === 'ticketForm' || currentView === 'ticketList') {
+        showView('dashboard');
+    }
+}
+
+document.getElementById('searchTicket').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('#ticketListItems tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (loggedIn && e.ctrlKey) {
+        switch(e.key) {
+            case 'n':
+                e.preventDefault();
+                showTicketForm();
+                break;
+            case 'l':
+                e.preventDefault();
+                showTicketList();
+                break;
+            case 'b':
+                e.preventDefault();
+                goBack();
+                break;
+        }
+    }
+});
